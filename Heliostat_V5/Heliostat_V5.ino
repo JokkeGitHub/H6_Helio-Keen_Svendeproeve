@@ -14,16 +14,17 @@ int nr = 90;  // No Rotation
 int ng = 70;  // No Grip
 
 int hr = 150;   // Horizontal Rotation
-int hrm = 30;   // Horizontal Rotation Minimum
-int hrx = 150;  // Horizontal Rotation Maximum
+int hrm = 30;   // Horizontal Rotation Maximum
+int hrx = 150;  // Horizontal Rotation Minimum
 int vr = 175;   // Vertical Rotation
-int vrm = 125;  // Vertical Rotation Minimum
-int vrx = 175;  // Vertical Rotation Maximum
+int vrm = 125;  // Vertical Rotation Maximum
+int vrx = 175;  // Vertical Rotation Minimum
 
 bool increaseHorizontalValue = true;
 bool increaseVerticalValue = true;
 bool moveVertically = false;
 int verticalTicks = 0;
+bool resetPosition = false;
 
 // reads the input on analog pin A0
 int lightValue = 0;
@@ -34,7 +35,6 @@ int savedHr = 0;
 int savedVr = 0;
 
 int tempLightValue = 0;
-int tempLightLevel = 0;
 int tempHr = 0;
 int tempVr = 0;
 
@@ -49,25 +49,33 @@ int ll7 = 700;   // Light level 7
 int ll8 = 800;   // Light level 8
 int ll9 = 900;   // Light level 9
 int llx = 1000;  // Light level 10
+
+bool isDaytime = true;
+bool routeReceived = false;
 #pragma endregion
 
 void setup() {
   Serial.begin(9600);
   Braccio.begin();
 
-  changeArmPosition(hr, vr);
+  moveArm(hr, vr);
   lightLevel = llx;
-
-  //lightLevel = determineLightLevel(lightLevel);
-  //saveLightLevel();
 }
 
 void loop() {
-  // Given inputs true/false, automate or not
+  
+  // Check for inputs
 
-  getLightValue();
-  //printLightValue();
-  maintainLightLevel();
+  if (isDaytime == false) {
+    // Await input
+  } else {
+    if (routeReceived == true) {
+      // get route
+    } else {
+      getLightValue();
+      maintainLightLevel();
+    }
+  }
 }
 
 #pragma region Alter Data
@@ -123,9 +131,6 @@ void saveRotation() {
 #pragma endregion
 
 #pragma region Temporary Data
-void saveTempLightLevel() {
-  tempLightLevel = lightLevel;
-}
 
 void saveTempRotation() {
   tempHr = hr;
@@ -134,7 +139,6 @@ void saveTempRotation() {
 
 void resetTempData() {
   tempLightValue = resetValue(tempLightValue);
-  tempLightLevel = resetValue(tempLightLevel);
   tempHr = resetValue(tempHr);
   tempVr = resetValue(tempVr);
 }
@@ -197,34 +201,38 @@ int determineLightLevel(int lightLevelValue) {
 
 void maintainLightLevel() {
 
-  if(lightValue > tempLightValue){
+  if (lightValue > tempLightValue) {
     tempLightValue = lightValue;
     tempHr = hr;
     tempVr = vr;
   }
 
-  if(hr == hrm && vr == vrm && lightValue - lightLevel < 0){
-    Serial.println("WE MADE IT IN HERE !!!!!!!!!!!!!!!");
-    hr = tempHr;
-    vr = tempVr;
+  if (hr == hrm && vr == vrm && lightValue - lightLevel < 0) {
+    if (resetPosition == true) {
+      moveToStartPosition();
+      lightLevel = llx;
+    } else {
+      Serial.println("WE MADE IT IN HERE !!!!!!!!!!!!!!!");
+      hr = tempHr;
+      vr = tempVr;
+
+      moveArm(hr, vr);
+      lightLevel = determineLightLevel(lightLevel);
+      saveLightLevel();
+      saveRotation();
+
+      // Submit to backend?
+    }
+
     resetTempData();
-
-    changeArmPosition(hr, vr);
-    lightLevel = determineLightLevel(lightLevel);
-    saveLightLevel();
-    saveRotation();
-  }
-  else if (lightValue - lightLevel >= 100) {
+    resetPosition = toggleBoolean(resetPosition);
+  } else if (lightValue - lightLevel >= 100) {
 
     lightLevel = determineLightLevel(lightLevel);
     saveLightLevel();
     saveRotation();
 
-    //submit to backend
-  } else if (lightValue - lightLevel >= 0 && lightValue - lightLevel < 100) {
-    
-    // useless
-
+    // Submit to backend?
   } else if (lightValue - lightLevel < 0) {
 
     if (moveVertically == true) {
@@ -237,8 +245,14 @@ void maintainLightLevel() {
 #pragma endregion
 
 #pragma region Automated Base Movement
-void changeArmPosition(int horizontalValue, int verticalValue) {
+void moveArm(int horizontalValue, int verticalValue) {
   Braccio.ServoMovement(nd, horizontalValue, nr, verticalValue, nr, nr, ng);
+}
+
+void moveToStartPosition() {
+  hr = hrx;
+  vr = vrx;
+  moveArm(hr, vr);
 }
 
 void movePositionHorizontal() {
@@ -264,7 +278,7 @@ void movePositionHorizontal() {
     verticalTicks = increaseValueBy10(verticalTicks);
   }
 
-  changeArmPosition(hr, vr);
+  moveArm(hr, vr);
 }
 
 void movePositionVertical() {
@@ -285,7 +299,7 @@ void movePositionVertical() {
       moveVertically = toggleBoolean(moveVertically);
     }
 
-    changeArmPosition(hr, vr);
+    moveArm(hr, vr);
   } else {
     moveVertically = toggleBoolean(moveVertically);
   }
