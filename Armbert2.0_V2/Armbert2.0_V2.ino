@@ -34,8 +34,9 @@ int maximumValue = 180;
 int horizontalRotation = 90;
 int verticalRotation = 35;
 String comma = ",";
-d
-  String end = "\n";
+String end = "\n";
+String startC = "<";
+String endC = ">";
 
 void setup() {
   // Setup serial communication at baudrate 9600 for reading the light sensor
@@ -127,14 +128,14 @@ void moveArm(int horizontalValue, int verticalValue) {
 
 int decreaseValue(int value) {
   if (value > minimumValue) {
-    value -= 2;
+    value -= 1;
   }
   return value;
 }
 
 int increaseValue(int value) {
   if (value < maximumValue) {
-    value += 2;
+    value += 1;
   }
   return value;
 }
